@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leny Utility Hub</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <span class="eyebrow">ALL-IN-ONE WEB TOOL</span>
+      <h1>Leny Utility Hub</h1>
+      <p>Media conversion, name formatting, and authorized Excel password removal in one clean dashboard.</p>
+    </div>
+    <div class="status" id="serverStatus">Checking server tools…</div>
+  </header>
+
+  <main class="grid">
+    <section class="card accent">
+      <div class="icon">▶</div>
+      <h2>YouTube → MP4</h2>
+      <p>Download a YouTube video you own or have permission to save.</p>
+      <label>YouTube URL</label>
+      <input id="ytUrl" type="url" placeholder="https://www.youtube.com/watch?v=...">
+      <label class="check"><input id="ytRights" type="checkbox"><span>I own this video or have permission to download it.</span></label>
+      <button onclick="youtubeToMp4()">Convert & Download MP4</button>
+      <div class="message" id="ytMsg"></div>
+    </section>
+
+    <section class="card">
+      <div class="icon">♫</div>
+      <h2>MP4 → MP3</h2>
+      <p>Extract the audio track from a video and save it as MP3.</p>
+      <label>Video file</label>
+      <input id="mp4File" type="file" accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.m4v">
+      <button onclick="mp4ToMp3()">Convert & Download MP3</button>
+      <div class="message" id="mp3Msg"></div>
+    </section>
+
+    <section class="card">
+      <div class="icon">Aa</div>
+      <h2>Last Name → First Name</h2>
+      <p>Convert <b>LastName, FirstName MiddleName</b> to <b>FirstName MiddleName LastName</b>.</p>
+      <label>Names — one per line</label>
+      <textarea id="nameA" rows="7" placeholder="SORIANO, LENY FLORES&#10;DELA CRUZ, JUAN SANTOS"></textarea>
+      <div class="row"><button onclick="convertA()">Convert</button><button class="secondary" onclick="copyText('resultA')">Copy</button></div>
+      <textarea id="resultA" rows="7" readonly placeholder="Converted names appear here"></textarea>
+    </section>
+
+    <section class="card">
+      <div class="icon">⇄</div>
+      <h2>First Name → Last Name</h2>
+      <p>Convert <b>FirstName MiddleName LastName</b> to <b>LastName, FirstName MiddleName</b>.</p>
+      <label>Names — one per line</label>
+      <textarea id="nameB" rows="7" placeholder="LENY FLORES SORIANO&#10;JUAN SANTOS DELA CRUZ"></textarea>
+      <div class="row"><button onclick="convertB()">Convert</button><button class="secondary" onclick="copyText('resultB')">Copy</button></div>
+      <textarea id="resultB" rows="7" readonly placeholder="Converted names appear here"></textarea>
+      <small>For compound surnames such as “Dela Cruz,” use the optional surname-word setting below.</small>
+      <label>Number of surname words</label>
+      <select id="surnameWords"><option value="1">1 word — Soriano</option><option value="2">2 words — Dela Cruz</option><option value="3">3 words</option></select>
+    </section>
+
+    <section class="card wide">
+      <div class="icon">XLS</div>
+      <h2>Remove Excel Open Password</h2>
+      <p>Upload an Excel workbook, enter its current password, and download a decrypted copy without the open password.</p>
+      <div class="two-col">
+        <div><label>Excel file</label><input id="excelFile" type="file" accept=".xlsx,.xlsm,.xls,.xlsb"></div>
+        <div><label>Current password</label><input id="excelPassword" type="password" placeholder="Enter current workbook password"></div>
+      </div>
+      <button onclick="unlockExcel()">Unlock & Download Copy</button>
+      <div class="message" id="excelMsg"></div>
+      <div class="notice">This tool does not crack or bypass unknown passwords. The correct current password is required.</div>
+    </section>
+  </main>
+
+  <footer><span>Leny Utility Hub</span><span>Files are processed temporarily and deleted after the download response.</span></footer>
+
+<script>
+function setMsg(id,text,error=false){const el=document.getElementById(id);el.textContent=text;el.className="message "+(error?"error":"ok");}
+async function downloadResponse(resp,fallbackName){if(!resp.ok){let data={};try{data=await resp.json();}catch{}throw new Error(data.error||"Request failed.");}const blob=await resp.blob();const disp=resp.headers.get("content-disposition")||"";const match=disp.match(/filename="?([^"]+)"?/i);const filename=match?match[1]:fallbackName;const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
+async function youtubeToMp4(){const url=document.getElementById("ytUrl").value.trim();const confirmRights=document.getElementById("ytRights").checked;setMsg("ytMsg","Processing video…");try{const resp=await fetch("/api/youtube-to-mp4",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url,confirmRights})});await downloadResponse(resp,"video.mp4");setMsg("ytMsg","MP4 ready and downloaded.");}catch(e){setMsg("ytMsg",e.message,true);}}
+async function mp4ToMp3(){const file=document.getElementById("mp4File").files[0];if(!file)return setMsg("mp3Msg","Please choose a video file.",true);const fd=new FormData();fd.append("file",file);setMsg("mp3Msg","Converting audio…");try{const resp=await fetch("/api/mp4-to-mp3",{method:"POST",body:fd});await downloadResponse(resp,file.name.replace(/.[^.]+$/,"")+".mp3");setMsg("mp3Msg","MP3 ready and downloaded.");}catch(e){setMsg("mp3Msg",e.message,true);}}
+function convertA(){const lines=document.getElementById("nameA").value.split(/?
+/);document.getElementById("resultA").value=lines.map(line=>{const t=line.trim();if(!t)return"";const comma=t.indexOf(",");if(comma<0)return t;const last=t.slice(0,comma).trim();const rest=t.slice(comma+1).trim();return[rest,last].filter(Boolean).join(" ").replace(/s+/g," ");}).join("
+");}
+function convertB(){const surnameWords=Math.max(1,parseInt(document.getElementById("surnameWords").value||"1"));const lines=document.getElementById("nameB").value.split(/?
+/);document.getElementById("resultB").value=lines.map(line=>{const parts=line.trim().split(/s+/).filter(Boolean);if(parts.length<=surnameWords)return line.trim();const surname=parts.slice(-surnameWords).join(" ");const given=parts.slice(0,-surnameWords).join(" ");return `${surname}, ${given}`;}).join("
+");}
+async function copyText(id){const el=document.getElementById(id);await navigator.clipboard.writeText(el.value||"");}
+async function unlockExcel(){const file=document.getElementById("excelFile").files[0];const password=document.getElementById("excelPassword").value;if(!file)return setMsg("excelMsg","Please choose an Excel file.",true);if(!password)return setMsg("excelMsg","Please enter the current password.",true);const fd=new FormData();fd.append("file",file);fd.append("password",password);setMsg("excelMsg","Decrypting workbook…");try{const resp=await fetch("/api/unlock-excel",{method:"POST",body:fd});await downloadResponse(resp,file.name.replace(/(.[^.]+)$/,"_unlocked$1"));setMsg("excelMsg","Unlocked copy ready and downloaded.");}catch(e){setMsg("excelMsg",e.message,true);}}
+fetch("/api/status").then(r=>r.json()).then(s=>{const ok=s.ffmpeg&&s.yt_dlp;document.getElementById("serverStatus").textContent=`FFmpeg: ${s.ffmpeg?"Ready":"Missing"} • yt-dlp: ${s.yt_dlp?"Ready":"Missing"}`;document.getElementById("serverStatus").classList.toggle("bad",!ok);}).catch(()=>document.getElementById("serverStatus").textContent="Server status unavailable");
+</script>
+</body>
+</html>
