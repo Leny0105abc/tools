@@ -1,0 +1,4 @@
+Flask>=3.0,<4
+msoffcrypto-tool>=5.4
+yt-dlp>=2025.1
+gunicorn>=23.0
